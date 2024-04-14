@@ -1,4 +1,5 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.Office.Interop.Excel;
+using System;
 using System.Collections.Generic;
 using XlsbUpload.models;
 
@@ -6,16 +7,36 @@ namespace XlsbUpload.services.department_reports_common
 {
     internal class TaskParserService
     {
-        internal IEnumerable<EmployeeTask> ParseTasktPage(ExcelWorksheet worksheet)
+        internal IEnumerable<EmployeeTask> ParseTasktPage(Worksheet worksheet)
         {
-            int rowCount = worksheet.Dimension.Rows;
+            Range range = worksheet.UsedRange;
 
-            for (int row = 2; row <= rowCount; row++) // Начинаем считывать с 2 строки, предполагая, что первая строка - заголовок
+            int rowCount = range.Rows.Count;
+
+            for (int row = 2; row <= rowCount; row++) // Начинаем считывать с 2 строки, так как первая строка содержит заголовки
             {
-                var taskId = worksheet.Cells[row, 1].GetValue<string>(); // Первый столбец - идентификатор задачи
-                var tin = worksheet.Cells[row, 2].GetValue<string>(); // Второй столбец - табельный номер
+                EmployeeTask emplTask = default;
+                try
+                {
+                    string taskId = (string)(range.Cells[row, 1] as Range).Value2.ToString();
+                    string tin = (range.Cells[row, 2] as Range).Value2.ToString();
 
-                yield return new EmployeeTask { IdTask = taskId, TIN = tin };
+                    emplTask = new EmployeeTask
+                    {
+                        TIN = tin,
+                        IdTask = taskId
+                    };
+                }
+                catch (Exception ex)
+                {
+
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"Ошибка парсинга заданий. В строке {row} {ex.Message}");
+                    Console.ResetColor();
+                    continue;
+                }
+
+                yield return emplTask;
             }
         }
     }
