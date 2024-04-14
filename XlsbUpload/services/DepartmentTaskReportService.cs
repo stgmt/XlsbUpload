@@ -45,33 +45,35 @@ namespace XlsbUpload.services
                 var departments = _departmentReader.Read(docPath);
                 var employeeTasks = _taskReader.Read(docPath);
 
-                // Группируем задачи по сотрудникам
                 var employeeTasksGrouped = employeeTasks.GroupBy(task => task.TIN);
 
-                var departmentBuildResult = new List<DepartmentTaskReportRow>();
-                // Для каждого отдела создаем строку отчета
-                foreach (var department in departments)
+                var departmentBuildResult = departments.Select(department =>
                 {
-                    var departmentRow = new DepartmentTaskReportRow
+                    var departmentTasks = employees
+                        .Where(emp => emp.DepartmentId == department.IdDepartment)
+                        .SelectMany(emp => employeeTasksGrouped.FirstOrDefault(group => group.Key == emp.TIN))
+                        .ToList();
+
+                    // Обновляем задачи с именем и фамилией сотрудника
+                    departmentTasks.ForEach(task =>
+                    {
+                        var matchingEmployee = employees.FirstOrDefault(emp => emp.TIN == task.TIN);
+                        if (matchingEmployee != null)
+                        {
+                            task.FirstName = matchingEmployee.FirstName;
+                            task.LastName = matchingEmployee.LastName;
+                        }
+                    });
+
+                    return new DepartmentTaskReportRow
                     {
                         DepartmentName = department.DepartmentName,
-                        EmployeeTasks = new List<EmployeeTask>()
+                        EmployeeTasks = departmentTasks
                     };
+                }).ToList();
 
-                    // Добавляем задачи для сотрудников в отделе
-                    foreach (var employee in employees.Where(emp => emp.DepartmentId == department.IdDepartment))
-                    {
-                        if (employeeTasksGrouped.Any(group => group.Key == employee.TIN))
-                        {
-                            departmentRow.EmployeeTasks = departmentRow.EmployeeTasks.Concat(employeeTasksGrouped.First(group => group.Key == employee.TIN));
-                        }
-                    }
-
-                    reports.Add(departmentBuildResult);
-                }
                 reports.Add(departmentBuildResult);
             }
-
 
             return reports;
         }

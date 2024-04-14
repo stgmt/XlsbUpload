@@ -1,11 +1,11 @@
-﻿using OfficeOpenXml;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
 namespace XlsbUpload.services
 {
+
     internal class ReaderBase
     {
         internal IEnumerable<string> GetDocumentPath(string[] filesPath)
@@ -31,10 +31,5 @@ namespace XlsbUpload.services
             }
         }
 
-        internal ExcelPackage GetDocument()
-        {
-
-            return default(ExcelPackage);
-        }
     }
 }

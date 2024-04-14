@@ -1,7 +1,6 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using XlsbUpload.models;
 using XlsbUpload.services.department_reports_common;
@@ -22,29 +21,39 @@ namespace XlsbUpload.services.reports_common
         {
             var employeeTasks = new List<EmployeeTask>();
 
-            var pageName = "Название_страницы"; // Укажите имя страницы в вашем Excel файле
+            var pageName = "Задачи"; // Укажите имя страницы в вашем Excel файле
 
-            using (var package = new ExcelPackage(new FileInfo(filePath)))
+
+            Application excelApp = new Application();
+            Workbook workbook = excelApp.Workbooks.Open(filePath, ReadOnly: true);
+
+            Worksheet worksheet = null;
+            foreach (Worksheet sheet in workbook.Sheets)
             {
-                var workbook = package.Workbook;
-                if (workbook != null)
+                if (sheet.Name == pageName)
                 {
-                    var worksheet = workbook.Worksheets.FirstOrDefault(x => x.Name == pageName);
-                    if (worksheet != null)
-                    {
-                        return _parserService.ParseTasktPage(worksheet);
-                    }
-                    else
-                    {
-                        throw new Exception($"Ошибка: страница '{pageName}' не найдена в файле.");
-                    }
-                }
-                else
-                {
-                    throw new Exception("Ошибка: не удалось открыть файл.");
+                    worksheet = sheet;
+                    break;
                 }
             }
 
+            if (worksheet != null)
+            {
+                var tasks = _parserService.ParseTasktPage(worksheet);
+                if (!tasks.Any())
+                {
+                    throw new Exception($"ошибка. не спарсилась страница {pageName}");
+                }
+                employeeTasks.AddRange(tasks);
+            }
+            else
+            {
+                throw new Exception("Ошибка: не удалось открыть файл.");
+            }
+
+            workbook.Close(false);
+            excelApp.Quit();
+            return employeeTasks;
         }
     }
 }

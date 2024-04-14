@@ -1,7 +1,6 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using XlsbUpload.models;
 using XlsbUpload.services.department_reports_common;
@@ -19,30 +18,45 @@ namespace XlsbUpload.services
 
         public IEnumerable<Department> Read(string filePath)
         {
+            var result = new List<Department>();
 
+            var pageName = "Отделы";
 
-            var pageName = "Название_страницы"; // Укажите имя страницы в вашем Excel файле
+            Application excelApp = new Application();
+            Workbook workbook = excelApp.Workbooks.Open(filePath, ReadOnly: true);
 
-            using (var package = new ExcelPackage(new FileInfo(filePath)))
+            Worksheet worksheet = null;
+            foreach (Worksheet sheet in workbook.Sheets)
             {
-                var workbook = package.Workbook;
-                if (workbook != null)
+                if (sheet.Name == pageName)
                 {
-                    var worksheet = workbook.Worksheets.FirstOrDefault(x => x.Name == pageName);
-                    if (worksheet != null)
-                    {
-                        return _departmentParserService.ParseDepartmentPage(worksheet);
-                    }
-                    else
-                    {
-                        throw new Exception($"Ошибка: страница '{pageName}' не найдена в файле.");
-                    }
-                }
-                else
-                {
-                    throw new Exception("Ошибка: не удалось открыть файл.");
+                    worksheet = sheet;
+                    break;
                 }
             }
+
+            if (worksheet != null)
+            {
+                var departs = _departmentParserService.ParseDepartmentPage(worksheet);
+        
+                if (!departs.Any())
+                {
+                    throw new Exception($"ошибка. не спарсилась страница {pageName}");
+                }
+                result.AddRange(departs);
+            }
+            else
+            {
+                throw new Exception("Ошибка: не удалось открыть файл.");
+            }
+
+            workbook.Close(false);
+            excelApp.Quit();
+
+
+
+
+            return result;
 
         }
     }

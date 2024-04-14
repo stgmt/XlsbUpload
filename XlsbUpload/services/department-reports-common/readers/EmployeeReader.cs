@@ -1,10 +1,10 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using XlsbUpload.models;
 using XlsbUpload.services;
+using XlsbUpload.services.department_reports_common;
 
 namespace XlsbUpload
 {
@@ -26,22 +26,39 @@ namespace XlsbUpload
 
             List<Employee> employees = new List<Employee>();
 
-            using (var package = new ExcelPackage(new FileInfo(filePath)))
-            {
-                var workbook = package.Workbook;
-                if (workbook != null)
-                {
+            Application excelApp = new Application();
+            Workbook workbook = excelApp.Workbooks.Open(filePath, ReadOnly: true);
 
-                    var worksheet = workbook.Worksheets.FirstOrDefault(x => x.Name == pageName);
-                    var employee = _parserService.ParseEmployeePage(worksheet);
-                    if (!employee.Any())
-                    {
-                        throw new Exception($"ошибка. не спарсилась страница {pageName}");
-                    }
+            // Предполагаем, что данные начинаются с первой строки в первом листе
+            Worksheet worksheet = null;
+            foreach (Worksheet sheet in workbook.Sheets)
+            {
+                if (sheet.Name == pageName)
+                {
+                    worksheet = sheet;
+                    break;
                 }
             }
 
-            return employees;
+            if (worksheet != null)
+            {
+                var empls = _parserService.ParseEmployeePage(worksheet);
+           
+                if (!empls.Any())
+                {
+                    throw new Exception($"ошибка. не спарсилась страница {pageName}");
+                }
+                result.AddRange(empls);
+            }
+            else
+            {
+                throw new Exception("Ошибка: не удалось открыть файл.");
+            }
+
+            workbook.Close(false);
+            excelApp.Quit();
+
+            return result;
         }
     }
 }
